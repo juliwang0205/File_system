@@ -5,5 +5,9 @@
 #define SUPER_BEGIN 0     // 超级块起始地址
 #define INODE_BEGIN sizeof(superblock)
 #define BLOCK_BEGIN (sizeof(superblock) + sizeof(Inode) * INODE_NUM)
+#define MAX_SEC   ((BLOCK_BEGIN + BLOCK_NUM * SEC_SIZE) / SEC_SIZE ) 
 
 #include <fstream>
+#include <string.h>
+#include <vector>
+#include <assert.h>
