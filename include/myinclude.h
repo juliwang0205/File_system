@@ -14,14 +14,40 @@
 
 using namespace std;
 /*******************************************
-  superblock类,占用64个扇区，262144个字节
+  superblock类,占用64个扇区，262144个字节。
 *******************************************/
 
 class superblock{
 private:
   bool inode_bitmap[INODE_NUM];
-  bool block_botmap[BLOCK_NUM];
+  bool block_bitmap[BLOCK_NUM];
+
+public:
+  // 剩余的inode数量
+  int remain_inode();
+
+  // 剩余的扇区数量
+  int remain_sec();
+
+  // 返回未使用的i节点
+  int get_new_inode();
+
+  // 返回未使用的扇区
+  int get_new_sec();
+
+  // 回收i节点
+  bool recv_inode(int inode_num);
+
+  // 回收扇区
+  bool recv_sec(int sec_num);
+
+  // 初始化位图全都清0
+  superblock();
+
+  // 格式化
+  bool init();
 };
+
 
 /*******************************************
   缓存类, 模拟磁盘的IO全部从这里经过。
@@ -68,7 +94,7 @@ class Buffer{
       // 新读入缓存的节点优先级为5，如果存在于缓存中，则优先级加 1
       bool read_disk(int sec_num, BufferNode& node);
 
-  // private:
+  private:
 
     // 真正操作文件
     bool real_disk_write(const BufferNode& node);
@@ -103,12 +129,45 @@ class Buffer{
 // compensate to 32 Bytes
 class Inode{
 private:
-  int inode_num;
-  bool is_file;
-  unsigned int file_size; // 最大4GB
-  int sec_beg; // 只指定第一个，后面的通过指针连接
-  int sec_num; // 占用的扇区数量
-  char compensate[12];
+  int _inode_num;
+  bool _is_file;
+  int _file_size; // 单位为Byte
+  int _sec_beg; // 只指定第一个，后面的通过指针连接
+  int _sec_num; // 占用的扇区数量
+  char _compensate[12];
+
+public:
+  // 构造函数初始化
+  Inode();
+
+  // 构造函数
+  Inode(int node_num, bool _is_file, int file_size , int sec_begin);
+
+  int get_inode_num();
+
+  // true->file; false->dir
+  bool get_type();
+
+  int get_file_size();
+
+  int get_sec_beg();
+
+  int get_sec_num();
+
+  void set_inode_num(int num);
+
+  // 返回Inode对应的扇区号
+  int get_inode_sec_num();
+
+  // 从磁盘中读取inode
+  bool read_inode_from_disk(int inode_num, Buffer& buffer);
+
+  // 将inode写回到磁盘中
+  bool write_inode_back_to_disk(Buffer& buffer);
+
+  Inode operator = (const Inode& b) {
+
+  }
 };
 
 /*******************************************
@@ -118,10 +177,22 @@ private:
 struct sector_dir_entry{
   char name[28];
   int inode_num;
+  void init(const char* _name, int _num);
+  sector_dir_entry();
+  sector_dir_entry operator = (const sector_dir_entry& dir);
+  void clone(const sector_dir_entry& dir);
 };
 
-// 512 Bytes
+// 512 Bytes.最后一项指示接下来的目录
 class sector_dir{
+    // 构造函数
+    sector_dir();
+
+    // 将文件结构写回到磁盘中
+    bool write_back_to_disk(Buffer& buffer, int sec_num);
+
+    sector_dir operator = (const sector_dir& sec_dir);
+
 private:
   sector_dir_entry dirs[16];
 };

@@ -6,6 +6,7 @@
 #include <iostream>
 #include <algorithm>
 #include <sstream>
+#include "myinclude.h"
 using namespace std;
 
 
@@ -20,21 +21,56 @@ public:
   // construct
   my_fs();
 private:
-  // 显示帮助信息
-  void help(string command, string args = "");
+    // 超级块
+    superblock _superblock;
 
-  // 显示菜单
-  void show_manu();
+    // 当前所在的目录
+    Inode cur_dir_node;
+    sector_dir cur_dir;
 
-  // 读取下一行
-  bool new_line(string &command);
+    // 缓存
+    Buffer my_cache;
 
-  // 处理输入的命令,如果输入 exit 则返回false
-  bool deal_input(const vector<string> command);
+    // 显示帮助信息
+    void help(string command, string args = "");
 
-  // help_ls
-  void deal_help(string args = "");
+    // 显示菜单
+    void show_manu();
 
-  // 缓存
+    // 读取下一行
+    bool new_line(string &command);
+
+    // 处理输入的命令,如果输入 exit 则返回false
+    bool deal_input(const vector<string> command);
+
+    // help_ls
+    void deal_help(string args = "");
+
+    // 格式化文件系统
+    bool format_file_system();
+
+    // ls: 列出文件夹下所有文件夹及目录(cur_dir中所有的信息)
+    bool list_dir();
+
+    // cd: 进入某个文件夹
+    bool change_dir();
+
+    // mkdir: 创建文件夹
+    bool make_dir();
+
+    // touch: 创建文件
+    bool touch();
+
+    // edit: 简单地编辑文件（只能输入一行字符串）
+    bool edit_file();
+
+    // rm: 删除文件或文件夹
+    bool remove_dir();
+
+    // 将现成文件存入当前目录中
+    bool move_in();
+
+    // 如果当前目录有指定文件，就将这个文件从文件系统中读出
+    bool move_out();
 
 };

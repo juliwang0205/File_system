@@ -168,6 +168,9 @@ void my_fs::deal_help(string args){
     else if(args == "rm") {
       cout << "rm <文件或目录名>" << endl;
     }
+    else if(args == "format") {
+        cout << "即将格式化磁盘，输入1确定，0取消" << endl;
+    }
     else {
       cout << "无法识别这条命令" << endl;
     }
@@ -195,4 +198,84 @@ void my_fs::show_manu() {
 // construct
 my_fs::my_fs(){
   cout << endl << "****************** 文件系统启动 ******************" << endl;
+
+}
+
+// 初始化文件系统
+bool my_fs::format_file_system() {
+    /*
+    *  1. 格式化superblock
+    */
+    sp.init();
+
+    /* 2. 申请根目录的一系列inode。包括根目录
+    *     根目录下面的bin、etc、home、dev
+    *     home目录下面的tangrui目录
+    */
+    Inode root_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    Inode bin_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    Inode etc_root(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    Inode home_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    Inode dev_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    Inode tangrui_root(sp.get_new_inode(), false, 0, sp.get_new_sec());
+
+    /*
+    *   3. 将inode写回到磁盘中
+    */
+    root_node.write_inode_back_to_disk(my_cache);
+    bin_node.write_inode_back_to_disk(my_cache);
+    etc_root.write_inode_back_to_disk(my_cache);
+    home_node.write_inode_back_to_disk(my_cache);
+    dev_node.write_inode_back_to_disk(my_cache);
+    tangrui_root.write_inode_back_to_disk(my_cache);
+
+    /*
+    *   4. 建立数据扇区中的目录结构
+    */
+    sector_dir root_sec_dir;
+    root_sec_dir.dirs[0].init(".", 1);
+    root_sec_dir.dirs[1].init("..", 1);
+    root_sec_dir.dirs[2].init("bin", bin_node.get_inode_num());
+    root_sec_dir.dirs[3].init("etc", etc_root.get_inode_num());
+    root_sec_dir.dirs[4].init("home", home_node.get_inode_num());
+    root_sec_dir.dirs[5].init("dev", dev_node.get_inode_num());
+
+    sector_dir bin_sec_dir;
+    bin_sec_dir.dirs[0].init(".", bin_node.get_inode_num());
+    bin_sec_dir.dirs[1].init("..", root_node.get_inode_num());
+
+    sector_dir etc_sec_dir;
+    etc_sec_dir.dirs[0].init(".", etc_root.get_inode_num());
+    etc_sec_dir.dirs[1].init("..", root_node.get_inode_num());
+
+    sector_dir home_sec_dir;
+    home_sec_dir.dirs[0].init(".", home_node.get_inode_num());
+    home_sec_dir.dirs[1].init("..", root_node.get_inode_num());
+    home_sec_dir.dirs[1].init("tangrui", tangrui_node.get_inode_num());
+
+    sector_dir dev_sec_dir;
+    dev_sec_dir.dirs[0].init(".",  dev_node.get_inode_num());
+    dev_sec_dir.dirs[1].init("..", root_node.get_inode_num());
+
+    sector_dir tangrui_sec_dir;
+    tangrui_sec_dir.dirs[0].init(".",  tangrui_node.get_inode_num());
+    tangrui_sec_dir.dirs[1].init("..", home_node.get_inode_num());
+
+
+    /*
+    *  5. 将文件夹对应的扇区写入到磁盘中
+    */
+    root_sec_dir.write_back_to_disk(my_cache, root_node.get_sec_num());
+    bin_sec_dir.write_back_to_disk(my_cache, bin_node.get_sec_num());
+    etc_sec_dir.write_back_to_disk(my_cache, etc_node.get_sec_num());
+    home_sec_dir.write_back_to_disk(my_cache, home_node.get_sec_num());
+    dev_sec_dir.write_back_to_disk(my_cache, dev_node.get_inode_num());
+    tangrui_sec_dir.write_back_to_disk(my_cache, tangrui_node.get_inode_num());
+
+    /*
+    *  6. 修改系统当前目录位置为根目录
+    */
+    cur_dir = root_sec_dir;
+    cur_dir_node = root_node;
+    return true;
 }

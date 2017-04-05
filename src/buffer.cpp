@@ -16,7 +16,6 @@ Buffer::~Buffer(){
 // 如果扇区已经存在于缓存中，则刷新扇区
 bool Buffer::write_disk(const BufferNode& node){
   assert(node.sec_num > 0 && node.sec_num < MAX_SEC);
-
   int i;
   i = has_sec(node.sec_num);
   if(i >= 0) {
