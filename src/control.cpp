@@ -135,11 +135,26 @@ bool my_fs::deal_input(const vector<string> command) {
       deal_help(command[1]);
   }
   else if(comm == "ls"){
-    cout << "还没有完成ls命令" << endl;
+    list_dir();
   }
   else if(comm == "exit") {
     cout << "退出系统" << endl;
     return false;
+  }
+  else if(comm == "cd") {
+      const char* dir = command[1].c_str();
+      change_dir(dir);
+  }
+  else if(comm == "reformat") {
+      format_file_system();
+  }
+  else if(comm == "mkdir"){
+      const char* dir = command[1].c_str();
+      make_dir(dir);
+  }
+  else if(comm == "touch"){
+      const char* file = command[1].c_str();
+      touch(file);
   }
   else {
     cout << "没有这一条命令，请输入help查看相关帮助信息" << endl;
@@ -168,8 +183,8 @@ void my_fs::deal_help(string args){
     else if(args == "rm") {
       cout << "rm <文件或目录名>" << endl;
     }
-    else if(args == "format") {
-        cout << "即将格式化磁盘，输入1确定，0取消" << endl;
+    else if(args == "reformat") {
+        cout << "reformat: 初始化磁盘" << endl;
     }
     else {
       cout << "无法识别这条命令" << endl;
@@ -190,9 +205,93 @@ void my_fs::show_manu() {
   cout << "如：help (显示所有帮助信息)" << endl;
   cout << "如：help ls (显示ls这条命令的帮助信息)" << endl << endl;
 
-  cout << "exit: 退出系统" << endl;
-  cout << "语法： exit" << endl;
+  cout << "reformat:初始化磁盘" << endl;
 
+  cout << "ls:列出当前文件夹下所有文件和目录" << endl;
+
+  cout << "cd：进入某个目录" << endl;
+
+  cout << "exit: 退出系统" << endl;
+
+}
+
+// ls: 列出文件夹下所有文件夹及目录(cur_dir中所有的信息)
+bool my_fs::list_dir() {
+    for(int i = 2; i < 15; i++) {
+        cout << cur_dir.dirs[i].name << " ";
+    }
+    cout << endl;
+    return true;
+}
+// rm: 删除文件或文件夹
+bool my_fs::remove_dir(const char* name) {
+    // 1. 在当前目录下寻找这个文件或目录
+    int del_inode_num = -1;
+    for(int i = 0; i < 15; i++) {
+        if(strncpy(name, cur_dir.dirs[i].name, strlen(name)) == 0) {
+            del_inode_num = cur_dir.dirs[i].inode_num;
+            cout << "该文件或目录inode号码为：" << dir_inode_num << endl;
+            break;
+        }
+    }
+    if(del_inode_num == -1) {
+        cout << "不存在这个文件或目录" << endl;
+        return false;
+    }
+
+    // 2. 读取这个inode节点
+    Inode del_node;
+    del_node.read_inode_from_disk(del_inode_num, my_cache);
+
+    del_node(del_node, cur_sector);
+
+    return true;
+}
+
+
+
+// cd: 进入某个文件夹
+bool my_fs::change_dir(const char* name) {
+    // 1. 得到子目录的inode号码
+    int dir_inode_num = -1;
+    for(int i = 0; i < 15; i++) {
+        if(strncmp(name, cur_dir.dirs[i].name, strlen(name)) == 0) {
+            dir_inode_num = cur_dir.dirs[i].inode_num;
+            cout << "目录inode号码为：" << dir_inode_num << endl;
+            break;
+        }
+    }
+    if(dir_inode_num == -1) {
+        cout << "该目录不存在" << endl;
+        return false;
+    }
+
+    // 2. 根据这个inode号码找到相应的inode
+    cur_dir_node.read_inode_from_disk(dir_inode_num, my_cache);
+
+    // 3. 根据inode中的信息区磁盘中读取目录信息
+    cur_dir.read_dir_from_disk(my_cache, cur_dir_node.get_sec_beg());
+
+    return true;
+}
+
+// 根据删除inode
+bool my_fs::del_inode(Inode& node， sector_dir& sec) {
+    if(node.get_type()) {
+        // file, 释放inode，inode对应的sec， 还要从dir中去除这个项目
+        //  1.删除sec中的这条记录
+        for(int i = 2; i < 15; i++) {
+            if(sec.dirs[i].inode_num == node.get_inode_num()) {
+                memset(&sec.dirs[i], 0, sizeof(sector_dir_entry));
+                break;
+            }
+        }
+
+        // 2. 释放inode和对应的扇区
+
+    else {
+        // dir
+    }
 }
 
 // construct
@@ -206,29 +305,31 @@ bool my_fs::format_file_system() {
     /*
     *  1. 格式化superblock
     */
+    cout << "******************************** 初始化磁盘开始 ********************************" << endl;
     sp.init();
 
-    /* 2. 申请根目录的一系列inode。包括根目录
+    /*
+    * 2. 申请根目录的一系列inode。包括根目录
     *     根目录下面的bin、etc、home、dev
     *     home目录下面的tangrui目录
     */
     Inode root_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
     Inode bin_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
-    Inode etc_root(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    Inode etc_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
     Inode home_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
     Inode dev_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
-    Inode tangrui_root(sp.get_new_inode(), false, 0, sp.get_new_sec());
-
+    Inode tangrui_node(sp.get_new_inode(), false, 0, sp.get_new_sec());
+    cout << "1. 申请inode" << endl;
     /*
     *   3. 将inode写回到磁盘中
     */
     root_node.write_inode_back_to_disk(my_cache);
     bin_node.write_inode_back_to_disk(my_cache);
-    etc_root.write_inode_back_to_disk(my_cache);
+    etc_node.write_inode_back_to_disk(my_cache);
     home_node.write_inode_back_to_disk(my_cache);
     dev_node.write_inode_back_to_disk(my_cache);
-    tangrui_root.write_inode_back_to_disk(my_cache);
-
+    tangrui_node.write_inode_back_to_disk(my_cache);
+    cout << "2. inode写回磁盘" << endl;
     /*
     *   4. 建立数据扇区中的目录结构
     */
@@ -236,7 +337,7 @@ bool my_fs::format_file_system() {
     root_sec_dir.dirs[0].init(".", 1);
     root_sec_dir.dirs[1].init("..", 1);
     root_sec_dir.dirs[2].init("bin", bin_node.get_inode_num());
-    root_sec_dir.dirs[3].init("etc", etc_root.get_inode_num());
+    root_sec_dir.dirs[3].init("etc", etc_node.get_inode_num());
     root_sec_dir.dirs[4].init("home", home_node.get_inode_num());
     root_sec_dir.dirs[5].init("dev", dev_node.get_inode_num());
 
@@ -245,13 +346,13 @@ bool my_fs::format_file_system() {
     bin_sec_dir.dirs[1].init("..", root_node.get_inode_num());
 
     sector_dir etc_sec_dir;
-    etc_sec_dir.dirs[0].init(".", etc_root.get_inode_num());
+    etc_sec_dir.dirs[0].init(".", etc_node.get_inode_num());
     etc_sec_dir.dirs[1].init("..", root_node.get_inode_num());
 
     sector_dir home_sec_dir;
     home_sec_dir.dirs[0].init(".", home_node.get_inode_num());
     home_sec_dir.dirs[1].init("..", root_node.get_inode_num());
-    home_sec_dir.dirs[1].init("tangrui", tangrui_node.get_inode_num());
+    home_sec_dir.dirs[2].init("tangrui", tangrui_node.get_inode_num());
 
     sector_dir dev_sec_dir;
     dev_sec_dir.dirs[0].init(".",  dev_node.get_inode_num());
@@ -261,21 +362,81 @@ bool my_fs::format_file_system() {
     tangrui_sec_dir.dirs[0].init(".",  tangrui_node.get_inode_num());
     tangrui_sec_dir.dirs[1].init("..", home_node.get_inode_num());
 
-
+    cout << "3. 目录创建完成" << endl;
     /*
     *  5. 将文件夹对应的扇区写入到磁盘中
     */
-    root_sec_dir.write_back_to_disk(my_cache, root_node.get_sec_num());
-    bin_sec_dir.write_back_to_disk(my_cache, bin_node.get_sec_num());
-    etc_sec_dir.write_back_to_disk(my_cache, etc_node.get_sec_num());
-    home_sec_dir.write_back_to_disk(my_cache, home_node.get_sec_num());
-    dev_sec_dir.write_back_to_disk(my_cache, dev_node.get_inode_num());
-    tangrui_sec_dir.write_back_to_disk(my_cache, tangrui_node.get_inode_num());
-
+    root_sec_dir.write_back_to_disk(my_cache, root_node.get_sec_beg());
+    bin_sec_dir.write_back_to_disk(my_cache, bin_node.get_sec_beg());
+    etc_sec_dir.write_back_to_disk(my_cache, etc_node.get_sec_beg());
+    home_sec_dir.write_back_to_disk(my_cache, home_node.get_sec_beg());
+    dev_sec_dir.write_back_to_disk(my_cache, dev_node.get_sec_beg());
+    tangrui_sec_dir.write_back_to_disk(my_cache, tangrui_node.get_sec_beg());
+    cout << "4.目录创建完成" << endl;
     /*
     *  6. 修改系统当前目录位置为根目录
     */
     cur_dir = root_sec_dir;
     cur_dir_node = root_node;
+    cout << "******************************** 初始化磁盘结束 ********************************" << endl;
     return true;
+}
+
+// mkdir: 创建文件夹
+bool my_fs::make_dir(const char* name) {
+    cout << "******************************** 创建新文件夹开始 ********************************" << endl;
+    // 1. 创建inode
+    Inode new_dir_inode(sp.get_new_inode(), false, 0, sp.get_new_sec());
+
+    // 2. 写回磁盘
+    new_dir_inode.write_inode_back_to_disk(my_cache);
+
+    // 3. 建立目录结构
+    sector_dir new_sec_dir;
+    new_sec_dir.dirs[0].init(".", new_dir_inode.get_inode_num());
+    new_sec_dir.dirs[1].init("..", cur_dir_node.get_inode_num());
+    new_sec_dir.write_back_to_disk(my_cache, new_dir_inode.get_sec_beg());
+
+    // 4. 当前目录中添加一项
+    int flag = false;
+    for(int i = 2; i < 15; i++) {
+        if(cur_dir.dirs[i].inode_num == 0) {
+            cur_dir.dirs[i].init(name, new_dir_inode.get_inode_num());
+            flag = true;
+            break;
+        }
+    }
+    if(flag) {
+        // 5. 将修改的目录写回磁盘
+        cur_dir.write_back_to_disk(my_cache, cur_dir_node.get_sec_beg());
+    }
+
+    return flag;
+    cout << "******************************** 创建新文件夹结束 ********************************" << endl;
+}
+
+// touch: 创建文件
+bool my_fs::touch(const char* name) {
+    cout << "******************************** 创建新文件开始 ********************************" << endl;
+    // 1. 创建inode
+    Inode new_file_inode(sp.get_new_inode(), true, 1, sp.get_new_sec());
+    new_file_inode.write_inode_back_to_disk(my_cache);
+
+    // 2. 当前目录添加一项
+    int flag = false;
+    for(int i = 2; i < 15; i++) {
+        if(cur_dir.dirs[i].inode_num == 0) {
+            cur_dir.dirs[i].init(name, new_file_inode.get_inode_num());
+            flag = true;
+            break;
+        }
+    }
+
+    if(flag) {
+        cur_dir.write_back_to_disk(my_cache, new_file_inode.get_sec_beg());
+    }
+
+    return flag;
+
+    cout << "******************************** 创建新文件结束 ********************************" << endl;
 }

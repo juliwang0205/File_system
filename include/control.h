@@ -22,7 +22,7 @@ public:
   my_fs();
 private:
     // 超级块
-    superblock _superblock;
+    superblock sp;
 
     // 当前所在的目录
     Inode cur_dir_node;
@@ -53,19 +53,22 @@ private:
     bool list_dir();
 
     // cd: 进入某个文件夹
-    bool change_dir();
+    bool change_dir(const char* name);
 
     // mkdir: 创建文件夹
-    bool make_dir();
+    bool make_dir(const char* name);
 
     // touch: 创建文件
-    bool touch();
+    bool touch(const char* name);
+
+    // rm: 删除文件或文件夹
+    bool remove_dir(const char* name);
+
+    // 根据删除inode
+    bool del_inode(Inode& node);
 
     // edit: 简单地编辑文件（只能输入一行字符串）
     bool edit_file();
-
-    // rm: 删除文件或文件夹
-    bool remove_dir();
 
     // 将现成文件存入当前目录中
     bool move_in();
@@ -73,4 +76,6 @@ private:
     // 如果当前目录有指定文件，就将这个文件从文件系统中读出
     bool move_out();
 
+    // 载入磁盘
+    bool init_file_system();
 };

@@ -15,7 +15,7 @@ Buffer::~Buffer(){
 // 将 buffer 里面的内容写入扇区中.单位为512KB。放入缓存队尾部。
 // 如果扇区已经存在于缓存中，则刷新扇区
 bool Buffer::write_disk(const BufferNode& node){
-  assert(node.sec_num > 0 && node.sec_num < MAX_SEC);
+  assert(node.sec_num >= 0 && node.sec_num < MAX_SEC);
   int i;
   i = has_sec(node.sec_num);
   if(i >= 0) {
@@ -36,10 +36,13 @@ bool Buffer::write_disk(const BufferNode& node){
   return true;
 }
 
+
+
+
 // 将扇区中的内容读入buffer中,首先会从缓存里找有没有这个节点。
 // 新读入缓存的节点优先级为5，如果存在于缓存中，则优先级加 1
 bool Buffer::read_disk(int sec_num, BufferNode& node){
-  assert(sec_num > 0 && sec_num < MAX_SEC);
+  assert(sec_num >= 0 && sec_num < MAX_SEC);
 
   int i;
   i = has_sec(sec_num);
@@ -72,7 +75,7 @@ bool Buffer::read_disk(int sec_num, BufferNode& node){
 
 // 真正写文件
 bool Buffer::real_disk_write(const BufferNode& node){
-  assert(node.sec_num > 0 && node.sec_num < MAX_SEC);
+  assert(node.sec_num >= 0 && node.sec_num < MAX_SEC);
   cout << "read disk write 写回第" << node.sec_num << "号扇区" << endl;
   disk.seekg(node.sec_num * SEC_SIZE, disk.beg);
   disk.write(node.buffer, SEC_SIZE);
@@ -81,7 +84,7 @@ bool Buffer::real_disk_write(const BufferNode& node){
 
 // 真正读文件
 bool Buffer::real_disk_read(int sec_num, BufferNode& node){
-  assert(sec_num > 0 && sec_num < MAX_SEC);
+  assert(sec_num >= 0 && sec_num < MAX_SEC);
   cout << "real disk read 读取第" << sec_num << "号扇区" << endl;
   disk.seekg(sec_num * SEC_SIZE, disk.beg);
   disk.read(node.buffer, SEC_SIZE);

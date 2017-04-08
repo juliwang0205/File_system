@@ -141,7 +141,7 @@ public:
   Inode();
 
   // 构造函数
-  Inode(int node_num, bool _is_file, int file_size , int sec_begin);
+  Inode(int node_num, bool _is_file, int file_size, int sec_begin);
 
   int get_inode_num();
 
@@ -185,6 +185,7 @@ struct sector_dir_entry{
 
 // 512 Bytes.最后一项指示接下来的目录
 class sector_dir{
+public:
     // 构造函数
     sector_dir();
 
@@ -193,9 +194,12 @@ class sector_dir{
 
     sector_dir operator = (const sector_dir& sec_dir);
 
-private:
-  sector_dir_entry dirs[16];
+    sector_dir_entry dirs[16];
+
+    bool read_dir_from_disk(Buffer& buffer, int sec_num);
 };
+
+
 
 // 512 Bytes
 class sector_file{
