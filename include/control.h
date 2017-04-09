@@ -65,10 +65,7 @@ private:
     bool remove_dir(const char* name);
 
     // 根据删除inode
-    bool del_inode(Inode& node);
-
-    // edit: 简单地编辑文件（只能输入一行字符串）
-    bool edit_file();
+    bool del_inode(Inode& node, sector_dir& del_dir);
 
     // 将现成文件存入当前目录中
     bool move_in();

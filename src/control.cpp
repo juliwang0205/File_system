@@ -73,7 +73,6 @@ string replace(const string& str, const string& src, const string& dest)
 }
 }
 
-
 // 显示帮助信息
 void my_fs::help(string command, string args) {
   if(args == "") {
@@ -156,6 +155,13 @@ bool my_fs::deal_input(const vector<string> command) {
       const char* file = command[1].c_str();
       touch(file);
   }
+  else if(comm == "rm") {
+      const char* del_name = command[1].c_str();
+      remove_dir(del_name);
+  } 
+  else if(comm == "mv_in") {
+     move_in(); 
+  }
   else {
     cout << "没有这一条命令，请输入help查看相关帮助信息" << endl;
   }
@@ -228,9 +234,9 @@ bool my_fs::remove_dir(const char* name) {
     // 1. 在当前目录下寻找这个文件或目录
     int del_inode_num = -1;
     for(int i = 0; i < 15; i++) {
-        if(strncpy(name, cur_dir.dirs[i].name, strlen(name)) == 0) {
+        if(strncmp(name, cur_dir.dirs[i].name, strlen(name)) == 0) {
             del_inode_num = cur_dir.dirs[i].inode_num;
-            cout << "该文件或目录inode号码为：" << dir_inode_num << endl;
+            cout << "该文件或目录inode号码为：" << del_inode_num << endl;
             break;
         }
     }
@@ -243,7 +249,10 @@ bool my_fs::remove_dir(const char* name) {
     Inode del_node;
     del_node.read_inode_from_disk(del_inode_num, my_cache);
 
-    del_node(del_node, cur_sector);
+    // cout << "inode对应数据扇区号码为：" << del_node.get_sec_beg() - BLOCK_BEGIN / 512 << endl;
+    // cout << "inode号为：" << del_node.get_inode_num() << endl;
+
+    del_inode(del_node, cur_dir);
 
     return true;
 }
@@ -276,23 +285,106 @@ bool my_fs::change_dir(const char* name) {
 }
 
 // 根据删除inode
-bool my_fs::del_inode(Inode& node， sector_dir& sec) {
+bool my_fs::del_inode(Inode& node, sector_dir& del_dir) {
+    cout << "delete inode, inode num为" << node.get_inode_num() << endl;
     if(node.get_type()) {
         // file, 释放inode，inode对应的sec， 还要从dir中去除这个项目
         //  1.删除sec中的这条记录
         for(int i = 2; i < 15; i++) {
-            if(sec.dirs[i].inode_num == node.get_inode_num()) {
-                memset(&sec.dirs[i], 0, sizeof(sector_dir_entry));
+            if(del_dir.dirs[i].inode_num == node.get_inode_num()) {
+                cout << "delate inode，删除sector中对文件的记录" << endl;
+                memset(&del_dir.dirs[i], 0, sizeof(sector_dir_entry));
+                del_dir.write_back_to_disk(my_cache, node.get_sec_beg());
                 break;
             }
         }
 
         // 2. 释放inode和对应的扇区
-
+        sp.recv_sec(node.get_sec_beg() - BLOCK_BEGIN / 512);
+        sp.recv_inode(node.get_inode_num());
+    }
     else {
         // dir
+        // 1.先删除当前目录对这个目录的记录
+        for(int i = 0; i < 15; i++) {
+            if(node.get_inode_num() == del_dir.dirs[i].inode_num) {
+                cout << "delate inode，删除sector中对文件的记录" << endl;
+                memset(&del_dir.dirs[i], 0, sizeof(sector_dir_entry));
+                del_dir.write_back_to_disk(my_cache, node.get_sec_beg());
+                break;
+            }
+        }
+        // 2. 释放这个目录的inode和扇区
+        sp.recv_sec(node.get_sec_beg() - BLOCK_BEGIN / 512);
+        sp.recv_inode(node.get_inode_num());
+        // 3. 切换到要删除的目录下
+        Inode new_node;
+        new_node = node;
+        sector_dir new_dir;
+        new_dir = del_dir;
+
+        new_dir.read_dir_from_disk(my_cache, new_node.get_sec_beg());
+        // 4. delete every files and directories recursively
+        for(int i = 2; i < 15; i++) {
+            if(new_dir.dirs[i].inode_num != 0) {
+                new_node.read_inode_from_disk(new_dir.dirs[i].inode_num, my_cache);
+                del_inode(new_node, new_dir);
+            }
+        }
     }
 }
+
+
+// 将现成文件存入当前目录中
+bool my_fs::move_in() {
+    /*
+    *  move p1.png into my file system
+    */
+    // 1. get file size, compute needed block number, allocate block 
+    ifstream is(IMG, ifstream::binary);
+    if(is) {
+        is.seekg(0, is.end);
+        int length = is.tellg();
+        cout << "size of the file:" << length << " bytes" << endl;
+
+        // 2. compute needed blocks
+        int needed_block = length / 508;
+        if(length % 508 != 0) 
+            needed_block++;
+        cout << "need " << needed_block << " blocks to store data" << endl;
+        
+        Inode new_file_inode(sp.get_new_inode(), true, 1, sp.get_new_sec());
+        new_file_inode.write_back_to_disk(my_cache);
+
+        // 3. add new entry in current directory
+        int flag = false;
+        for(int i = 2; i < 15; i++) {
+            if(cur_dir.dirs[i].inode_num == 0) {
+                cur_dir.dirs[i].init(IMG, new_file_inode.get_inode_num());
+                flag = true;
+                break;
+            }
+        }
+        if(flag) {
+            cur_dir.write_back_to_disk(my_cache, cur_dir_inode.get_sec_beg());
+        }
+
+        // 4. store data into file system
+        sector_file img_sectors[needed_block];
+
+        is.close(); 
+    }
+     
+}
+
+// 如果当前目录有指定文件，就将这个文件从文件系统中读出
+bool my_fs::move_out() {
+    /*
+    * move p1.png out of my file system
+    */
+}
+
+
 
 // construct
 my_fs::my_fs(){
@@ -326,7 +418,7 @@ bool my_fs::format_file_system() {
     root_node.write_inode_back_to_disk(my_cache);
     bin_node.write_inode_back_to_disk(my_cache);
     etc_node.write_inode_back_to_disk(my_cache);
-    home_node.write_inode_back_to_disk(my_cache);
+    home_noe.write_inode_back_to_disk(my_cache);
     dev_node.write_inode_back_to_disk(my_cache);
     tangrui_node.write_inode_back_to_disk(my_cache);
     cout << "2. inode写回磁盘" << endl;

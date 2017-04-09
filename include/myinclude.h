@@ -7,6 +7,7 @@
 #define INODE_NUM 131072  // inode数量
 #define BLOCK_NUM 131072  // 数据扇区数量
 #define DISK  "disk.img"  // 模拟磁盘
+#define IMG "p1.png"
 #define SUPER_BEGIN 0     // 超级块起始地址
 #define INODE_BEGIN sizeof(superblock)
 #define BLOCK_BEGIN (sizeof(superblock) + sizeof(Inode) * INODE_NUM)
@@ -203,7 +204,8 @@ public:
 
 // 512 Bytes
 class sector_file{
-private:
+public:
   char data[508];
   int next;
+  sector_file();
 };
