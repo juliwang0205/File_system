@@ -8,6 +8,7 @@
 #define BLOCK_NUM 131072  // 数据扇区数量
 #define DISK  "disk.img"  // 模拟磁盘
 #define IMG "p1.png"
+#define IMG_OUT "p1-1.png"
 #define SUPER_BEGIN 0     // 超级块起始地址
 #define INODE_BEGIN sizeof(superblock)
 #define BLOCK_BEGIN (sizeof(superblock) + sizeof(Inode) * INODE_NUM)
@@ -207,5 +208,9 @@ class sector_file{
 public:
   char data[508];
   int next;
+  
   sector_file();
+  sector_file operator = (const sector_file& sec_file);
+  bool read_dir_from_disk(Buffer& buffer, int sec_num);
+  bool write_back_to_disk(Buffer& buffer, int sec_num);
 };

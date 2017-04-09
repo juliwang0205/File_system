@@ -21,4 +21,4 @@ superblock.o : ./src/superblock.cpp
 	g++ -c ./src/superblock.cpp -o ./obj/superblock.o
 
 clean :
-	rm -f  ./bin/filesystem test ./obj/* ./bin/*
+	rm -f  ./bin/filesystem test ./obj/* ./bin/* p1-1.png
