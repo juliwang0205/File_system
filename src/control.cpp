@@ -163,7 +163,7 @@ bool my_fs::deal_input(const vector<string> command) {
      move_in(); 
   }
   else if(comm == "mv_out") {
-      move_out();
+      move_out(command[1]);
   }
   else {
     cout << "没有这一条命令，请输入help查看相关帮助信息" << endl;
@@ -418,7 +418,7 @@ bool my_fs::move_in() {
 }
 
 // 如果当前目录有指定文件，就将这个文件从文件系统中读出
-bool my_fs::move_out() {
+bool my_fs::move_out(string name) {
     /*
     * move p1.png out of my file system
     */
@@ -447,7 +447,8 @@ bool my_fs::move_out() {
     // 2. get data of p1.png from my file system 
     sector_file data_sec;
     data_sec.read_dir_from_disk(my_cache, file_node.get_sec_beg());
-    fstream os(IMG_OUT, fstream::in | fstream::out | fstream::app);
+    string file_name = name + ".png";
+    fstream os(file_name.c_str(), fstream::in | fstream::out | fstream::app);
 
     char buffer[508];
     int next_sec = -1, left = file_node.get_file_size() % 508;

@@ -35,7 +35,7 @@ private:
     void help(string command, string args = "");
 
     // 显示菜单
-    void show_manu();
+        void show_manu();
 
     // 读取下一行
     bool new_line(string &command);
@@ -71,7 +71,7 @@ private:
     bool move_in();
 
     // 如果当前目录有指定文件，就将这个文件从文件系统中读出
-    bool move_out();
+    bool move_out(string name);
 
     // 载入磁盘
     bool init_file_system();
